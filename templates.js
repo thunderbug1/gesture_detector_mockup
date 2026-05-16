@@ -13,38 +13,31 @@ export const getTemplates = () => {
 
     // Triangle
     templates.push(new Template("Triangle", [
-        new Point(100, 50), new Point(150, 150), 
+        new Point(100, 50), new Point(150, 150),
         new Point(50, 150), new Point(100, 50)
     ]));
 
     // Square
     templates.push(new Template("Square", [
-        new Point(50, 50), new Point(150, 50), 
-        new Point(150, 150), new Point(50, 150), 
+        new Point(50, 50), new Point(150, 50),
+        new Point(150, 150), new Point(50, 150),
         new Point(50, 50)
     ]));
 
-    // V (with a slightly flat bottom to distinguish from Caret)
+    // V
     templates.push(new Template("V", [
-        new Point(50, 50), new Point(90, 150), 
-        new Point(110, 150), new Point(150, 50)
-    ]));
-
-    // Caret (^) (shorter and sharper)
-    templates.push(new Template("Caret", [
-        new Point(60, 150), new Point(100, 50), 
-        new Point(140, 150)
+        new Point(50, 50), new Point(100, 150), new Point(150, 50)
     ]));
 
     // ZigZag
     templates.push(new Template("ZigZag", [
-        new Point(50, 50), new Point(150, 50), 
+        new Point(50, 50), new Point(150, 50),
         new Point(50, 150), new Point(150, 150)
     ]));
-    
+
     // Lightning
     templates.push(new Template("Bolt", [
-        new Point(100, 20), new Point(60, 100), 
+        new Point(100, 20), new Point(60, 100),
         new Point(120, 100), new Point(80, 180)
     ]));
 

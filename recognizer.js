@@ -9,11 +9,19 @@ export class Template {
     constructor(name, points, options = {}) {
         const { numPoints = 64, squareSize = 250.0, origin = { x: 0, y: 0 } } = options;
         this.name = name;
-        this.points = Recognizer.resample(points, numPoints);
-        const radians = Recognizer.indicativeAngle(this.points);
-        this.points = Recognizer.rotateBy(this.points, -radians);
-        this.points = Recognizer.scaleTo(this.points, squareSize);
-        this.points = Recognizer.translateTo(this.points, origin);
+        
+        // Step 1: Resample
+        const resampled = Recognizer.resample(points, numPoints);
+        
+        // Step 2: Store "Render Points" (scaled and translated, but NOT rotated)
+        // This ensures the UI displays the rune in its natural orientation.
+        let rPoints = Recognizer.scaleTo(resampled, squareSize);
+        this.renderPoints = Recognizer.translateTo(rPoints, origin);
+        
+        // Step 3: Recognition points (No longer rotated to indicative angle)
+        // This makes the system rotation-sensitive, which is better for distinguishing
+        // shapes like 'V' vs 'Caret' or different orientations of runes.
+        this.points = this.renderPoints;
     }
 }
 
@@ -32,8 +40,7 @@ export class Recognizer {
         
         // 1. Preprocess
         points = this.resample(points, this.NumPoints);
-        const radians = this.indicativeAngle(points);
-        points = this.rotateBy(points, -radians);
+        // We no longer rotate to an indicative angle here to keep orientation sensitivity.
         points = this.scaleTo(points, this.SquareSize);
         points = this.translateTo(points, this.Origin);
 
