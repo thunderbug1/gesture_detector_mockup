@@ -229,7 +229,7 @@
 
     <header>
         <h1>Arcane Scribing</h1>
-        <p class="subtitle">Geometric Gesture Recognition ($1 Algorithm)</p>
+        <p class="subtitle">Geometric Gesture Recognition ($1 Algorithm + Robustness)</p>
     </header>
 
     <main>
@@ -273,11 +273,10 @@
 
     <script>
         /**
-         * $1 Gesture Recognizer implementation
-         * Based on Wobbrock, Wilson, and Li (2007)
+         * Robust $1 Gesture Recognizer
+         * Path-order sensitive but robust to starting point and direction.
          */
         const DollarRecognizer = (() => {
-            // Constants
             const NumPoints = 64;
             const SquareSize = 250.0;
             const Origin = { x: 0, y: 0 };
@@ -304,7 +303,7 @@
             function recognize(points, templates) {
                 const t0 = performance.now();
                 
-                // 1. Preprocess the candidate gesture
+                // Preprocess the candidate gesture
                 points = resample(points, NumPoints);
                 const radians = indicativeAngle(points);
                 points = rotateBy(points, -radians);
@@ -332,26 +331,26 @@
                 };
             }
 
-            // Helper functions
             function resample(points, n) {
                 const I = pathLength(points) / (n - 1);
                 let D = 0.0;
                 const newPoints = [points[0]];
-                for (let i = 1; i < points.length; i++) {
-                    const d = distance(points[i - 1], points[i]);
+                const pts = points.slice();
+                for (let i = 1; i < pts.length; i++) {
+                    const d = distance(pts[i - 1], pts[i]);
                     if ((D + d) >= I) {
-                        const qx = points[i - 1].x + ((I - D) / d) * (points[i].x - points[i - 1].x);
-                        const qy = points[i - 1].y + ((I - D) / d) * (points[i].y - points[i - 1].y);
+                        const qx = pts[i - 1].x + ((I - D) / d) * (pts[i].x - pts[i - 1].x);
+                        const qy = pts[i - 1].y + ((I - D) / d) * (pts[i].y - pts[i - 1].y);
                         const q = new Point(qx, qy);
                         newPoints.push(q);
-                        points.splice(i, 0, q);
+                        pts.splice(i, 0, q);
                         D = 0.0;
                     } else {
                         D += d;
                     }
                 }
                 if (newPoints.length === n - 1) {
-                    newPoints.push(points[points.length - 1]);
+                    newPoints.push(pts[pts.length - 1]);
                 }
                 return newPoints;
             }
@@ -378,8 +377,8 @@
                 const B = boundingBox(points);
                 const newPoints = [];
                 for (let i = 0; i < points.length; i++) {
-                    const qx = points[i].x * (size / B.width);
-                    const qy = points[i].y * (size / B.height);
+                    const qx = points[i].x * (size / Math.max(B.width, 1));
+                    const qy = points[i].y * (size / Math.max(B.height, 1));
                     newPoints.push(new Point(qx, qy));
                 }
                 return newPoints;
@@ -425,11 +424,28 @@
             }
 
             function pathDistance(pts1, pts2) {
-                let d = 0.0;
-                for (let i = 0; i < pts1.length; i++) {
-                    d += distance(pts1[i], pts2[i]);
+                // Check both forward and backward, with cyclic shifts for closed shapes
+                let dForward = cyclicPathDistance(pts1, pts2);
+                let pts1Rev = pts1.slice().reverse();
+                let dBackward = cyclicPathDistance(pts1Rev, pts2);
+                return Math.min(dForward, dBackward);
+            }
+
+            function cyclicPathDistance(pts1, pts2) {
+                let n = pts1.length;
+                let minD = Infinity;
+                // Identify if closed based on endpoint proximity
+                const isClosed = distance(pts1[0], pts1[n-1]) < (SquareSize * 0.3);
+                const step = isClosed ? 1 : n;
+                
+                for (let shift = 0; shift < n; shift += step) {
+                    let d = 0.0;
+                    for (let i = 0; i < n; i++) {
+                        d += distance(pts1[(i + shift) % n], pts2[i]);
+                    }
+                    if (d < minD) minD = d;
                 }
-                return d / pts1.length;
+                return minD / n;
             }
 
             function pathLength(points) {
@@ -697,10 +713,12 @@
                     div.dataset.name = t.name;
                     
                     // Simple SVG representation
+                    const scale = 0.5; // Scale down for the 200x200 SVG
+                    const offset = 100;
                     let svgContent = `<svg viewBox="0 0 200 200">`;
-                    svgContent += `<path d="M ${t.points[0].x + 100} ${t.points[0].y + 100}`;
+                    svgContent += `<path d="M ${t.points[0].x * scale + offset} ${t.points[0].y * scale + offset}`;
                     for(let i=1; i<t.points.length; i++) {
-                        svgContent += ` L ${t.points[i].x + 100} ${t.points[i].y + 100}`;
+                        svgContent += ` L ${t.points[i].x * scale + offset} ${t.points[i].y * scale + offset}`;
                     }
                     svgContent += `" /></svg>`;
                     
