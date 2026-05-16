@@ -357,7 +357,19 @@
 
             function indicativeAngle(points) {
                 const c = centroid(points);
-                return Math.atan2(c.y - points[0].y, c.x - points[0].x);
+                // Use the point farthest from the centroid as the reference for rotation.
+                // This is much more stable than using points[0], especially for shapes
+                // like spirals that might start near the center.
+                let maxD = -1;
+                let referencePoint = points[0];
+                for (let i = 0; i < points.length; i++) {
+                    const d = distance(c, points[i]);
+                    if (d > maxD) {
+                        maxD = d;
+                        referencePoint = points[i];
+                    }
+                }
+                return Math.atan2(c.y - referencePoint.y, c.x - referencePoint.x);
             }
 
             function rotateBy(points, radians) {
@@ -695,14 +707,23 @@
                     new DollarRecognizer.Point(100, 10)
                 ]));
 
-                // Spiral
-                const spiral = [];
-                for (let i = 0; i < 720; i += 10) {
+                // Spiral (Clockwise) - Defined Outside-In
+                const spiralCW = [];
+                for (let i = 720; i >= 0; i -= 10) {
                     const r = i * Math.PI / 180;
                     const dist = i / 10;
-                    spiral.push(new DollarRecognizer.Point(100 + dist * Math.cos(r), 100 + dist * Math.sin(r)));
+                    spiralCW.push(new DollarRecognizer.Point(100 + dist * Math.cos(r), 100 + dist * Math.sin(r)));
                 }
-                this.templates.push(new DollarRecognizer.Template("Spiral", spiral));
+                this.templates.push(new DollarRecognizer.Template("Spiral", spiralCW));
+
+                // Counter-Spiral (Counter-Clockwise) - Defined Outside-In
+                const spiralCCW = [];
+                for (let i = 720; i >= 0; i -= 10) {
+                    const r = -i * Math.PI / 180; // Negative angle for CCW
+                    const dist = i / 10;
+                    spiralCCW.push(new DollarRecognizer.Point(100 + dist * Math.cos(r), 100 + dist * Math.sin(r)));
+                }
+                this.templates.push(new DollarRecognizer.Template("Counter-Spiral", spiralCCW));
             },
 
             renderTemplatesGrid() {
