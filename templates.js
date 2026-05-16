@@ -24,16 +24,16 @@ export const getTemplates = () => {
         new Point(50, 50)
     ]));
 
-    // V
+    // V (with a slightly flat bottom to distinguish from Caret)
     templates.push(new Template("V", [
-        new Point(50, 50), new Point(100, 150), 
-        new Point(150, 50)
+        new Point(50, 50), new Point(90, 150), 
+        new Point(110, 150), new Point(150, 50)
     ]));
 
-    // Caret (^)
+    // Caret (^) (shorter and sharper)
     templates.push(new Template("Caret", [
-        new Point(50, 150), new Point(100, 50), 
-        new Point(150, 150)
+        new Point(60, 150), new Point(100, 50), 
+        new Point(140, 150)
     ]));
 
     // ZigZag
