@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arcane Gesture Recognition - $1 Recognizer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0a0a12;
+            --panel-bg: rgba(20, 20, 35, 0.8);
+            --accent-color: #7d5fff;
+            --glow-color: rgba(125, 95, 255, 0.5);
+            --text-primary: #e0e0ff;
+            --text-secondary: #a0a0c0;
+            --success-color: #00ffaa;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(30, 30, 60, 0.3) 0%, transparent 70%),
+                url('https://www.transparenttextures.com/patterns/dark-matter.png');
+        }
+
+        header {
+            padding: 2rem;
+            text-align: center;
+            z-index: 10;
+        }
+
+        h1 {
+            font-family: 'Cinzel', serif;
+            font-size: 2.5rem;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            text-shadow: 0 0 20px var(--glow-color);
+            margin-bottom: 0.5rem;
+        }
+
+        p.subtitle {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            padding: 1rem 2rem 2rem;
+            gap: 2rem;
+            position: relative;
+        }
+
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            background: var(--panel-bg);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+            cursor: crosshair;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 280px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            pointer-events: none;
+        }
+
+        .panel {
+            background: rgba(15, 15, 25, 0.9);
+            border: 1px solid rgba(125, 95, 255, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            pointer-events: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .panel h3 {
+            font-family: 'Cinzel', serif;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            color: var(--accent-color);
+            border-bottom: 1px solid rgba(125, 95, 255, 0.2);
+            padding-bottom: 0.5rem;
+        }
+
+        #result-panel {
+            transition: all 0.3s ease;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .result-value {
+            font-weight: 600;
+            color: var(--success-color);
+        }
+
+        #templates-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .template-icon {
+            aspect-ratio: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .template-icon svg {
+            width: 70%;
+            height: 70%;
+            stroke: var(--text-secondary);
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .template-icon.active {
+            border-color: var(--accent-color);
+            background: rgba(125, 95, 255, 0.1);
+        }
+
+        .template-icon.active svg {
+            stroke: var(--accent-color);
+            filter: drop-shadow(0 0 5px var(--accent-color));
+        }
+
+        .template-label {
+            position: absolute;
+            bottom: 2px;
+            font-size: 0.6rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 1rem;
+        }
+
+        button {
+            background: rgba(125, 95, 255, 0.2);
+            border: 1px solid var(--accent-color);
+            color: white;
+            padding: 0.8rem 1.5rem;
+            border-radius: 30px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            backdrop-filter: blur(5px);
+        }
+
+        button:hover {
+            background: var(--accent-color);
+            box-shadow: 0 0 20px var(--glow-color);
+        }
+
+        .instruction {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            max-width: 200px;
+        }
+
+        /* Recognition flash animation */
+        @keyframes flash {
+            0% { box-shadow: 0 0 0px var(--success-color); }
+            50% { box-shadow: 0 0 40px var(--success-color); }
+            100% { box-shadow: 0 0 0px var(--success-color); }
+        }
+
+        .recognized {
+            animation: flash 0.6s ease-out;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Arcane Scribing</h1>
+        <p class="subtitle">Geometric Gesture Recognition ($1 Algorithm)</p>
+    </header>
+
+    <main>
+        <div id="canvas-container">
+            <canvas id="gesture-canvas"></canvas>
+            
+            <div class="instruction">
+                Draw a single continuous stroke on the canvas to cast a spell.
+            </div>
+
+            <div id="controls">
+                <button id="clear-btn">Clear Canvas</button>
+            </div>
+        </div>
+
+        <div id="ui-overlay">
+            <div class="panel" id="result-panel">
+                <h3>Recognition Result</h3>
+                <div class="result-item">
+                    <span>Gesture:</span>
+                    <span id="res-name" class="result-value">None</span>
+                </div>
+                <div class="result-item">
+                    <span>Confidence:</span>
+                    <span id="res-score" class="result-value">0%</span>
+                </div>
+                <div class="result-item">
+                    <span>Time:</span>
+                    <span id="res-time" class="result-value">0ms</span>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>Known Runes</h3>
+                <div id="templates-grid">
+                    <!-- Templates will be populated by JS -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        /**
+         * $1 Gesture Recognizer implementation
+         * Based on Wobbrock, Wilson, and Li (2007)
+         */
+        const DollarRecognizer = (() => {
+            // Constants
+            const NumPoints = 64;
+            const SquareSize = 250.0;
+            const Origin = { x: 0, y: 0 };
+            const Diagonal = Math.sqrt(SquareSize * SquareSize + SquareSize * SquareSize);
+            const HalfDiagonal = 0.5 * Diagonal;
+            const AngleRange = 45.0;
+            const AnglePrecision = 2.0;
+            const Phi = 0.5 * (-1.0 + Math.sqrt(5.0)); // Golden Ratio
+
+            function Point(x, y) {
+                this.x = x;
+                this.y = y;
+            }
+
+            function Template(name, points) {
+                this.name = name;
+                this.points = resample(points, NumPoints);
+                const radians = indicativeAngle(this.points);
+                this.points = rotateBy(this.points, -radians);
+                this.points = scaleTo(this.points, SquareSize);
+                this.points = translateTo(this.points, Origin);
+            }
+
+            function recognize(points, templates) {
+                const t0 = performance.now();
+                
+                // 1. Preprocess the candidate gesture
+                points = resample(points, NumPoints);
+                const radians = indicativeAngle(points);
+                points = rotateBy(points, -radians);
+                points = scaleTo(points, SquareSize);
+                points = translateTo(points, Origin);
+
+                let b = Infinity;
+                let t = -1;
+
+                for (let i = 0; i < templates.length; i++) {
+                    const d = distanceAtBestAngle(points, templates[i], -AngleRange, AngleRange, AnglePrecision);
+                    if (d < b) {
+                        b = d;
+                        t = i;
+                    }
+                }
+
+                const t1 = performance.now();
+                const score = 1.0 - (b / HalfDiagonal);
+                
+                return {
+                    name: t === -1 ? "Unknown" : templates[t].name,
+                    score: score > 0 ? score : 0,
+                    time: Math.round(t1 - t0)
+                };
+            }
+
+            // Helper functions
+            function resample(points, n) {
+                const I = pathLength(points) / (n - 1);
+                let D = 0.0;
+                const newPoints = [points[0]];
+                for (let i = 1; i < points.length; i++) {
+                    const d = distance(points[i - 1], points[i]);
+                    if ((D + d) >= I) {
+                        const qx = points[i - 1].x + ((I - D) / d) * (points[i].x - points[i - 1].x);
+                        const qy = points[i - 1].y + ((I - D) / d) * (points[i].y - points[i - 1].y);
+                        const q = new Point(qx, qy);
+                        newPoints.push(q);
+                        points.splice(i, 0, q);
+                        D = 0.0;
+                    } else {
+                        D += d;
+                    }
+                }
+                if (newPoints.length === n - 1) {
+                    newPoints.push(points[points.length - 1]);
+                }
+                return newPoints;
+            }
+
+            function indicativeAngle(points) {
+                const c = centroid(points);
+                return Math.atan2(c.y - points[0].y, c.x - points[0].x);
+            }
+
+            function rotateBy(points, radians) {
+                const c = centroid(points);
+                const cos = Math.cos(radians);
+                const sin = Math.sin(radians);
+                const newPoints = [];
+                for (let i = 0; i < points.length; i++) {
+                    const qx = (points[i].x - c.x) * cos - (points[i].y - c.y) * sin + c.x;
+                    const qy = (points[i].x - c.x) * sin + (points[i].y - c.y) * cos + c.y;
+                    newPoints.push(new Point(qx, qy));
+                }
+                return newPoints;
+            }
+
+            function scaleTo(points, size) {
+                const B = boundingBox(points);
+                const newPoints = [];
+                for (let i = 0; i < points.length; i++) {
+                    const qx = points[i].x * (size / B.width);
+                    const qy = points[i].y * (size / B.height);
+                    newPoints.push(new Point(qx, qy));
+                }
+                return newPoints;
+            }
+
+            function translateTo(points, pt) {
+                const c = centroid(points);
+                const newPoints = [];
+                for (let i = 0; i < points.length; i++) {
+                    const qx = points[i].x + pt.x - c.x;
+                    const qy = points[i].y + pt.y - c.y;
+                    newPoints.push(new Point(qx, qy));
+                }
+                return newPoints;
+            }
+
+            function distanceAtBestAngle(points, T, a, b, threshold) {
+                let x1 = Phi * a + (1.0 - Phi) * b;
+                let f1 = distanceAtAngle(points, T, x1);
+                let x2 = (1.0 - Phi) * a + Phi * b;
+                let f2 = distanceAtAngle(points, T, x2);
+                while (Math.abs(b - a) > threshold) {
+                    if (f1 < f2) {
+                        b = x2;
+                        x2 = x1;
+                        f2 = f1;
+                        x1 = Phi * a + (1.0 - Phi) * b;
+                        f1 = distanceAtAngle(points, T, x1);
+                    } else {
+                        a = x1;
+                        x1 = x2;
+                        f1 = f2;
+                        x2 = (1.0 - Phi) * a + Phi * b;
+                        f2 = distanceAtAngle(points, T, x2);
+                    }
+                }
+                return Math.min(f1, f2);
+            }
+
+            function distanceAtAngle(points, T, radians) {
+                const newPoints = rotateBy(points, radians);
+                return pathDistance(newPoints, T.points);
+            }
+
+            function pathDistance(pts1, pts2) {
+                let d = 0.0;
+                for (let i = 0; i < pts1.length; i++) {
+                    d += distance(pts1[i], pts2[i]);
+                }
+                return d / pts1.length;
+            }
+
+            function pathLength(points) {
+                let d = 0.0;
+                for (let i = 1; i < points.length; i++) {
+                    d += distance(points[i - 1], points[i]);
+                }
+                return d;
+            }
+
+            function distance(p1, p2) {
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+
+            function centroid(points) {
+                let x = 0.0, y = 0.0;
+                for (let i = 0; i < points.length; i++) {
+                    x += points[i].x;
+                    y += points[i].y;
+                }
+                x /= points.length;
+                y /= points.length;
+                return new Point(x, y);
+            }
+
+            function boundingBox(points) {
+                let minX = +Infinity, maxX = -Infinity, minY = +Infinity, maxY = -Infinity;
+                for (let i = 0; i < points.length; i++) {
+                    minX = Math.min(minX, points[i].x);
+                    minY = Math.min(minY, points[i].y);
+                    maxX = Math.max(maxX, points[i].x);
+                    maxY = Math.max(maxY, points[i].y);
+                }
+                return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+            }
+
+            return {
+                Point,
+                Template,
+                recognize
+            };
+        })();
+
+        /**
+         * Main Application Logic
+         */
+        const App = {
+            canvas: null,
+            ctx: null,
+            isDrawing: false,
+            points: [],
+            templates: [],
+            activeTemplate: null,
+            
+            init() {
+                this.canvas = document.getElementById('gesture-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.resize();
+
+                window.addEventListener('resize', () => this.resize());
+
+                this.canvas.addEventListener('pointerdown', (e) => this.startDrawing(e));
+                this.canvas.addEventListener('pointermove', (e) => this.draw(e));
+                this.canvas.addEventListener('pointerup', (e) => this.stopDrawing(e));
+
+                document.getElementById('clear-btn').addEventListener('click', () => this.clear());
+
+                this.loadTemplates();
+                this.renderTemplatesGrid();
+            },
+
+            resize() {
+                const rect = this.canvas.parentElement.getBoundingClientRect();
+                this.canvas.width = rect.width;
+                this.canvas.height = rect.height;
+                this.clear();
+            },
+
+            startDrawing(e) {
+                this.isDrawing = true;
+                
+                // Clear previous stroke
+                this.clear();
+                
+                // If we have an active template, redraw it as a guide
+                if (this.activeTemplate) {
+                    this.drawGuide(this.activeTemplate);
+                }
+
+                this.points = [new DollarRecognizer.Point(e.offsetX, e.offsetY)];
+                this.ctx.beginPath();
+                this.ctx.moveTo(e.offsetX, e.offsetY);
+                this.ctx.strokeStyle = '#7d5fff';
+                this.ctx.lineWidth = 4;
+                this.ctx.lineJoin = 'round';
+                this.ctx.lineCap = 'round';
+                this.ctx.shadowBlur = 10;
+                this.ctx.shadowColor = '#7d5fff';
+            },
+
+            draw(e) {
+                if (!this.isDrawing) return;
+                this.points.push(new DollarRecognizer.Point(e.offsetX, e.offsetY));
+                this.ctx.lineTo(e.offsetX, e.offsetY);
+                this.ctx.stroke();
+            },
+
+            stopDrawing() {
+                if (!this.isDrawing) return;
+                this.isDrawing = false;
+                
+                if (this.points.length > 10) {
+                    const result = DollarRecognizer.recognize(this.points, this.templates);
+                    this.showResult(result);
+                } else {
+                    this.clear();
+                }
+            },
+
+            showResult(result) {
+                const resName = document.getElementById('res-name');
+                const resScore = document.getElementById('res-score');
+                const resTime = document.getElementById('res-time');
+                const container = document.getElementById('canvas-container');
+
+                resName.innerText = result.name;
+                resScore.innerText = Math.round(result.score * 100) + '%';
+                resTime.innerText = result.time + 'ms';
+
+                // Visual feedback
+                if (result.score > 0.7) {
+                    container.classList.add('recognized');
+                    setTimeout(() => container.classList.remove('recognized'), 600);
+                    
+                    // Highlight template in grid
+                    document.querySelectorAll('.template-icon').forEach(icon => {
+                        icon.classList.toggle('active', icon.dataset.name === result.name);
+                    });
+
+                    // Flash the stroke in success color
+                    this.ctx.strokeStyle = '#00ffaa';
+                    this.ctx.shadowColor = '#00ffaa';
+                    this.ctx.stroke();
+                } else {
+                    resName.innerText = "Unknown";
+                }
+            },
+
+            clear() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.ctx.shadowBlur = 0;
+                this.ctx.setLineDash([]); // Reset dash
+                document.getElementById('res-name').innerText = "None";
+                document.getElementById('res-score').innerText = "0%";
+                document.getElementById('res-time').innerText = "0ms";
+                
+                // Only clear the active visual state in grid if we are truly resetting
+                if (!this.isDrawing) {
+                    document.querySelectorAll('.template-icon').forEach(icon => icon.classList.remove('active'));
+                    this.activeTemplate = null;
+                }
+            },
+
+            drawGuide(template) {
+                this.ctx.save();
+                this.ctx.strokeStyle = 'rgba(125, 95, 255, 0.15)';
+                this.ctx.lineWidth = 20;
+                this.ctx.lineJoin = 'round';
+                this.ctx.lineCap = 'round';
+                
+                const centerX = this.canvas.width / 2;
+                const centerY = this.canvas.height / 2;
+                
+                this.ctx.beginPath();
+                const pts = template.points;
+                this.ctx.moveTo(pts[0].x + centerX, pts[0].y + centerY);
+                for (let i = 1; i < pts.length; i++) {
+                    this.ctx.lineTo(pts[i].x + centerX, pts[i].y + centerY);
+                }
+                this.ctx.stroke();
+                
+                // Add a second, dashed line for more "blueprint" feel
+                this.ctx.strokeStyle = 'rgba(125, 95, 255, 0.3)';
+                this.ctx.lineWidth = 2;
+                this.ctx.setLineDash([5, 10]);
+                this.ctx.stroke();
+                
+                this.ctx.restore();
+            },
+
+            loadTemplates() {
+                // Predefined shapes (normalized point sets)
+                // Circle
+                const circle = [];
+                for (let i = 0; i < 360; i += 10) {
+                    const r = i * Math.PI / 180;
+                    circle.push(new DollarRecognizer.Point(100 + 50 * Math.cos(r), 100 + 50 * Math.sin(r)));
+                }
+                this.templates.push(new DollarRecognizer.Template("Circle", circle));
+
+                // Triangle
+                this.templates.push(new DollarRecognizer.Template("Triangle", [
+                    new DollarRecognizer.Point(100, 50), new DollarRecognizer.Point(150, 150), 
+                    new DollarRecognizer.Point(50, 150), new DollarRecognizer.Point(100, 50)
+                ]));
+
+                // Square
+                this.templates.push(new DollarRecognizer.Template("Square", [
+                    new DollarRecognizer.Point(50, 50), new DollarRecognizer.Point(150, 50), 
+                    new DollarRecognizer.Point(150, 150), new DollarRecognizer.Point(50, 150), 
+                    new DollarRecognizer.Point(50, 50)
+                ]));
+
+                // V
+                this.templates.push(new DollarRecognizer.Template("V", [
+                    new DollarRecognizer.Point(50, 50), new DollarRecognizer.Point(100, 150), 
+                    new DollarRecognizer.Point(150, 50)
+                ]));
+
+                // Caret (^)
+                this.templates.push(new DollarRecognizer.Template("Caret", [
+                    new DollarRecognizer.Point(50, 150), new DollarRecognizer.Point(100, 50), 
+                    new DollarRecognizer.Point(150, 150)
+                ]));
+
+                // ZigZag
+                this.templates.push(new DollarRecognizer.Template("ZigZag", [
+                    new DollarRecognizer.Point(50, 50), new DollarRecognizer.Point(150, 50), 
+                    new DollarRecognizer.Point(50, 150), new DollarRecognizer.Point(150, 150)
+                ]));
+                
+                // Lightning
+                this.templates.push(new DollarRecognizer.Template("Bolt", [
+                    new DollarRecognizer.Point(100, 20), new DollarRecognizer.Point(60, 100), 
+                    new DollarRecognizer.Point(120, 100), new DollarRecognizer.Point(80, 180)
+                ]));
+
+                // Star (Single stroke)
+                this.templates.push(new DollarRecognizer.Template("Star", [
+                    new DollarRecognizer.Point(100, 10), new DollarRecognizer.Point(125, 80),
+                    new DollarRecognizer.Point(190, 80), new DollarRecognizer.Point(140, 125),
+                    new DollarRecognizer.Point(160, 190), new DollarRecognizer.Point(100, 150),
+                    new DollarRecognizer.Point(40, 190), new DollarRecognizer.Point(60, 125),
+                    new DollarRecognizer.Point(10, 80), new DollarRecognizer.Point(75, 80),
+                    new DollarRecognizer.Point(100, 10)
+                ]));
+
+                // Spiral
+                const spiral = [];
+                for (let i = 0; i < 720; i += 10) {
+                    const r = i * Math.PI / 180;
+                    const dist = i / 10;
+                    spiral.push(new DollarRecognizer.Point(100 + dist * Math.cos(r), 100 + dist * Math.sin(r)));
+                }
+                this.templates.push(new DollarRecognizer.Template("Spiral", spiral));
+            },
+
+            renderTemplatesGrid() {
+                const grid = document.getElementById('templates-grid');
+                this.templates.forEach(t => {
+                    const div = document.createElement('div');
+                    div.className = 'template-icon';
+                    div.dataset.name = t.name;
+                    
+                    // Simple SVG representation
+                    let svgContent = `<svg viewBox="0 0 200 200">`;
+                    svgContent += `<path d="M ${t.points[0].x + 100} ${t.points[0].y + 100}`;
+                    for(let i=1; i<t.points.length; i++) {
+                        svgContent += ` L ${t.points[i].x + 100} ${t.points[i].y + 100}`;
+                    }
+                    svgContent += `" /></svg>`;
+                    
+                    div.innerHTML = svgContent + `<span class="template-label">${t.name}</span>`;
+                    
+                    div.addEventListener('click', () => {
+                        this.activeTemplate = t;
+                        this.clear();
+                        this.drawGuide(t);
+                        
+                        document.querySelectorAll('.template-icon').forEach(icon => icon.classList.remove('active'));
+                        div.classList.add('active');
+                    });
+
+                    grid.appendChild(div);
+                });
+            }
+        };
+
+        App.init();
+    </script>
+</body>
+</html>
