@@ -35,33 +35,24 @@ class App {
 
     startDrawing(e) {
         this.isDrawing = true;
-        this.clear();
+        this.recognitionResult = null;
+        this.points = [];
         
-        if (this.activeTemplate) {
-            this.drawGuide(this.activeTemplate);
-        }
-
         const x = e.offsetX;
         const y = e.offsetY;
-        this.points = [new Point(x, y)];
+        this.points.push(new Point(x, y));
         
-        this.ctx.beginPath();
-        this.ctx.moveTo(x, y);
-        this.ctx.strokeStyle = '#7d5fff';
-        this.ctx.lineWidth = 4;
-        this.ctx.lineJoin = 'round';
-        this.ctx.lineCap = 'round';
-        this.ctx.shadowBlur = 10;
-        this.ctx.shadowColor = '#7d5fff';
+        this.render();
     }
 
     draw(e) {
         if (!this.isDrawing) return;
+        
         const x = e.offsetX;
         const y = e.offsetY;
         this.points.push(new Point(x, y));
-        this.ctx.lineTo(x, y);
-        this.ctx.stroke();
+        
+        this.render();
     }
 
     stopDrawing() {
@@ -70,10 +61,12 @@ class App {
         
         if (this.points.length > 10) {
             const result = Recognizer.recognize(this.points, this.templates);
+            this.recognitionResult = result;
             this.showResult(result);
         } else {
             this.clear();
         }
+        this.render();
     }
 
     showResult(result) {
@@ -93,19 +86,51 @@ class App {
             document.querySelectorAll('.template-icon').forEach(icon => {
                 icon.classList.toggle('active', icon.dataset.name === result.name);
             });
-
-            this.ctx.strokeStyle = '#00ffaa';
-            this.ctx.shadowColor = '#00ffaa';
-            this.ctx.stroke();
         } else {
             resName.innerText = "Unknown";
         }
     }
 
-    clear(resetActive = false) {
+    render() {
+        // Clear canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.shadowBlur = 0;
-        this.ctx.setLineDash([]);
+        
+        // Draw Guide
+        if (this.activeTemplate) {
+            this.drawGuide(this.activeTemplate);
+        }
+
+        // Draw current points
+        if (this.points.length < 2) return;
+
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.points[0].x, this.points[0].y);
+        for (let i = 1; i < this.points.length; i++) {
+            this.ctx.lineTo(this.points[i].x, this.points[i].y);
+        }
+
+        // Style based on state
+        if (this.recognitionResult && this.recognitionResult.score > 0.7) {
+            this.ctx.strokeStyle = '#00ffaa';
+            this.ctx.shadowColor = '#00ffaa';
+        } else {
+            this.ctx.strokeStyle = '#7d5fff';
+            this.ctx.shadowColor = '#7d5fff';
+        }
+
+        this.ctx.lineWidth = 4;
+        this.ctx.lineJoin = 'round';
+        this.ctx.lineCap = 'round';
+        this.ctx.shadowBlur = 10;
+        
+        this.ctx.stroke();
+        this.ctx.restore();
+    }
+
+    clear(resetActive = false) {
+        this.points = [];
+        this.recognitionResult = null;
         
         document.getElementById('res-name').innerText = "None";
         document.getElementById('res-score').innerText = "0%";
@@ -115,6 +140,8 @@ class App {
             document.querySelectorAll('.template-icon').forEach(icon => icon.classList.remove('active'));
             this.activeTemplate = null;
         }
+        
+        this.render();
     }
 
     drawGuide(template) {
@@ -128,7 +155,7 @@ class App {
         const centerY = this.canvas.height / 2;
         
         this.ctx.beginPath();
-        const pts = template.points;
+        const pts = template.renderPoints || template.points;
         this.ctx.moveTo(pts[0].x + centerX, pts[0].y + centerY);
         for (let i = 1; i < pts.length; i++) {
             this.ctx.lineTo(pts[i].x + centerX, pts[i].y + centerY);
@@ -154,10 +181,11 @@ class App {
             
             const scale = 0.5;
             const offset = 100;
+            const pts = t.renderPoints || t.points;
             let svgContent = `<svg viewBox="0 0 200 200">`;
-            svgContent += `<path d="M ${t.points[0].x * scale + offset} ${t.points[0].y * scale + offset}`;
-            for(let i=1; i<t.points.length; i++) {
-                svgContent += ` L ${t.points[i].x * scale + offset} ${t.points[i].y * scale + offset}`;
+            svgContent += `<path d="M ${pts[0].x * scale + offset} ${pts[0].y * scale + offset}`;
+            for(let i=1; i<pts.length; i++) {
+                svgContent += ` L ${pts[i].x * scale + offset} ${pts[i].y * scale + offset}`;
             }
             svgContent += `" /></svg>`;
             
