@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arcane Gesture Recognition</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <header>
+        <h1>Arcane Scribing</h1>
+        <p class="subtitle">Geometric Gesture Recognition ($1 Algorithm + Robustness)</p>
+    </header>
+
+    <main>
+        <div id="canvas-container">
+            <canvas id="gesture-canvas"></canvas>
+            
+            <div class="instruction">
+                Draw a single continuous stroke on the canvas to cast a spell.
+            </div>
+
+            <div id="controls">
+                <button id="clear-btn">Clear Canvas</button>
+            </div>
+        </div>
+
+        <div id="ui-overlay">
+            <div class="panel" id="result-panel">
+                <h3>Recognition Result</h3>
+                <div class="result-item">
+                    <span>Gesture:</span>
+                    <span id="res-name" class="result-value">None</span>
+                </div>
+                <div class="result-item">
+                    <span>Confidence:</span>
+                    <span id="res-score" class="result-value">0%</span>
+                </div>
+                <div class="result-item">
+                    <span>Time:</span>
+                    <span id="res-time" class="result-value">0ms</span>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>Known Runes</h3>
+                <div id="templates-grid">
+                    <!-- Templates populated by app.js -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,214 @@
+:root {
+    --bg-color: #0a0a12;
+    --panel-bg: rgba(20, 20, 35, 0.8);
+    --accent-color: #7d5fff;
+    --glow-color: rgba(125, 95, 255, 0.5);
+    --text-primary: #e0e0ff;
+    --text-secondary: #a0a0c0;
+    --success-color: #00ffaa;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-image: 
+        radial-gradient(circle at 50% 50%, rgba(30, 30, 60, 0.3) 0%, transparent 70%),
+        url('https://www.transparenttextures.com/patterns/dark-matter.png');
+}
+
+header {
+    padding: 2rem;
+    text-align: center;
+    z-index: 10;
+}
+
+h1 {
+    font-family: 'Cinzel', serif;
+    font-size: 2.5rem;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    text-shadow: 0 0 20px var(--glow-color);
+    margin-bottom: 0.5rem;
+}
+
+p.subtitle {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+}
+
+main {
+    flex: 1;
+    display: flex;
+    padding: 1rem 2rem 2rem;
+    gap: 2rem;
+    position: relative;
+}
+
+#canvas-container {
+    flex: 1;
+    position: relative;
+    background: var(--panel-bg);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+}
+
+canvas {
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+    cursor: crosshair;
+}
+
+#ui-overlay {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    pointer-events: none;
+}
+
+.panel {
+    background: rgba(15, 15, 25, 0.9);
+    border: 1px solid rgba(125, 95, 255, 0.3);
+    border-radius: 12px;
+    padding: 1.5rem;
+    pointer-events: auto;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.panel h3 {
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    color: var(--accent-color);
+    border-bottom: 1px solid rgba(125, 95, 255, 0.2);
+    padding-bottom: 0.5rem;
+}
+
+#result-panel {
+    transition: all 0.3s ease;
+}
+
+.result-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.result-value {
+    font-weight: 600;
+    color: var(--success-color);
+}
+
+#templates-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.template-icon {
+    aspect-ratio: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    position: relative;
+    cursor: pointer;
+}
+
+.template-icon svg {
+    width: 70%;
+    height: 70%;
+    stroke: var(--text-secondary);
+    stroke-width: 2;
+    fill: none;
+}
+
+.template-icon.active {
+    border-color: var(--accent-color);
+    background: rgba(125, 95, 255, 0.1);
+}
+
+.template-icon.active svg {
+    stroke: var(--accent-color);
+    filter: drop-shadow(0 0 5px var(--accent-color));
+}
+
+.template-label {
+    position: absolute;
+    bottom: 2px;
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+#controls {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 1rem;
+}
+
+button {
+    background: rgba(125, 95, 255, 0.2);
+    border: 1px solid var(--accent-color);
+    color: white;
+    padding: 0.8rem 1.5rem;
+    border-radius: 30px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    backdrop-filter: blur(5px);
+}
+
+button:hover {
+    background: var(--accent-color);
+    box-shadow: 0 0 20px var(--glow-color);
+}
+
+.instruction {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    max-width: 200px;
+}
+
+@keyframes flash {
+    0% { box-shadow: 0 0 0px var(--success-color); }
+    50% { box-shadow: 0 0 40px var(--success-color); }
+    100% { box-shadow: 0 0 0px var(--success-color); }
+}
+
+.recognized {
+    animation: flash 0.6s ease-out;
+}
