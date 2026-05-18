@@ -18,13 +18,24 @@
 
     <main>
         <div id="canvas-container">
+            <video id="webcam-video" autoplay playsinline muted></video>
             <canvas id="gesture-canvas"></canvas>
             
+            <div id="webcam-loader" class="webcam-overlay hidden">
+                <div class="spinner"></div>
+                <div class="loading-text">Channelling Magic Mirror...</div>
+                <div class="loading-sub">Loading Vision Tracking Models</div>
+            </div>
+
             <div class="instruction">
-                Draw a single continuous stroke on the canvas to cast a spell.
+                Draw a single continuous stroke to cast a spell. In Aura mode, pinch thumb & index finger to draw.
             </div>
 
             <div id="controls">
+                <div class="mode-toggle">
+                    <button id="mode-mouse" class="mode-btn active">Mouse Scribing</button>
+                    <button id="mode-webcam" class="mode-btn">Aura Scribing</button>
+                </div>
                 <button id="clear-btn">Clear Canvas</button>
             </div>
         </div>

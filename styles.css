@@ -212,3 +212,115 @@ button:hover {
 .recognized {
     animation: flash 0.6s ease-out;
 }
+
+/* Webcam Scribing Modes & Overlay Styles */
+#webcam-video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1); /* Mirror camera stream */
+    opacity: 0;
+    filter: grayscale(40%) sepia(20%) hue-rotate(220deg) contrast(1.15) brightness(0.7); /* mystic violet tone */
+    pointer-events: none;
+    z-index: 0;
+    transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    display: none;
+}
+
+#webcam-video.active {
+    display: block;
+    opacity: 0.25; /* Semi-transparent ambient background */
+}
+
+.webcam-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(10, 10, 18, 0.9);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.8rem;
+    z-index: 5;
+    backdrop-filter: blur(12px);
+    transition: opacity 0.3s ease-out;
+}
+
+.webcam-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+    display: none !important;
+}
+
+.spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid rgba(125, 95, 255, 0.1);
+    border-top: 3px solid var(--accent-color);
+    border-radius: 50%;
+    animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    box-shadow: 0 0 15px var(--glow-color);
+    margin-bottom: 0.5rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+    font-family: 'Cinzel', serif;
+    font-size: 1.2rem;
+    color: var(--accent-color);
+    letter-spacing: 2px;
+    text-shadow: 0 0 10px var(--glow-color);
+}
+
+.loading-sub {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+}
+
+/* Mode Selection Capsule Controls */
+.mode-toggle {
+    display: flex;
+    background: rgba(0, 0, 0, 0.45);
+    border-radius: 30px;
+    padding: 3px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(8px);
+}
+
+.mode-btn {
+    background: transparent !important;
+    border: none !important;
+    color: var(--text-secondary) !important;
+    padding: 0.5rem 1.2rem !important;
+    border-radius: 27px !important;
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 600 !important;
+    font-size: 0.8rem !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+}
+
+.mode-btn:hover {
+    color: white !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.mode-btn.active {
+    background: var(--accent-color) !important;
+    color: white !important;
+    box-shadow: 0 4px 15px var(--glow-color) !important;
+}
+
