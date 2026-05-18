@@ -19,8 +19,11 @@ class App {
         this.activeHand = null;
         this.activeHandRaw = null;
         this.stream = null;
-        this.pinchStartDist = 0.08;
-        this.pinchEndDist = 0.12;
+        // Calibrated 2D palm-width relative thresholds
+        this.pinchStartDist = 0.25; // Pinch starts when tips are < 25% of palm width
+        this.pinchEndDist = 0.38;   // Pinch ends when tips are > 38% of palm width
+        this.smoothedHand = null;
+        this.smoothedDNorm = undefined;
 
         this.init();
     }
@@ -173,6 +176,8 @@ class App {
         this.isPinching = false;
         this.activeHand = null;
         this.activeHandRaw = null;
+        this.smoothedHand = null;
+        this.smoothedDNorm = null;
         if (this.loader) this.loader.classList.add('hidden');
         this.render();
     }
@@ -210,43 +215,62 @@ class App {
 
             const thumb = hand[4];
             const index = hand[8];
-            const wrist = hand[0];
-            const middleMCP = hand[9];
 
-            // Map index tip coordinates to canvas and mirror
-            const canvasX = (1.0 - index.x) * this.canvas.width;
-            const canvasY = index.y * this.canvas.height;
-            this.activeHand = { x: canvasX, y: canvasY };
-
-            // Calculate Euclidean distance for pinch detection
+            // 1. Calculate 2D Euclidean distance on the projected plane (ignores noisy Z)
             const dRaw = Math.sqrt(
                 Math.pow(index.x - thumb.x, 2) +
-                Math.pow(index.y - thumb.y, 2) +
-                Math.pow(index.z - thumb.z, 2)
+                Math.pow(index.y - thumb.y, 2)
             );
 
-            // Normalize by reference scale (wrist to middle knuckle)
-            const handScale = Math.sqrt(
-                Math.pow(middleMCP.x - wrist.x, 2) +
-                Math.pow(middleMCP.y - wrist.y, 2) +
-                Math.pow(middleMCP.z - wrist.z, 2)
+            // 2. Use stable 2D palm width (joint 5 to 17) as rigid reference scale
+            const indexMCP = hand[5];
+            const pinkyMCP = hand[17];
+            const palmWidth = Math.sqrt(
+                Math.pow(pinkyMCP.x - indexMCP.x, 2) +
+                Math.pow(pinkyMCP.y - indexMCP.y, 2)
             );
 
-            const dNorm = dRaw / (handScale || 1.0);
+            const dNorm = dRaw / (palmWidth || 1.0);
 
-            // Double threshold hysteresis
-            if (!this.isPinching && dNorm < this.pinchStartDist) {
+            // 3. Apply low-pass EMA filter to the pinch distance to prevent frame occlusion dropouts
+            const alphaDist = 0.25;
+            if (this.smoothedDNorm === undefined || this.smoothedDNorm === null) {
+                this.smoothedDNorm = dNorm;
+            } else {
+                this.smoothedDNorm += alphaDist * (dNorm - this.smoothedDNorm);
+            }
+            const finalDNorm = this.smoothedDNorm;
+
+            // 4. Map index coordinates to canvas with horizontal mirroring
+            const canvasX = (1.0 - index.x) * this.canvas.width;
+            const canvasY = index.y * this.canvas.height;
+
+            // 5. Apply low-pass EMA filter to cursor coordinates to eliminate joint tremors and camera jitter
+            const alphaCoord = 0.20; // 0.20 provides a perfect, butter-smooth draw feel with zero noticeable lag
+            if (!this.smoothedHand) {
+                this.smoothedHand = { x: canvasX, y: canvasY };
+            } else {
+                this.smoothedHand.x += alphaCoord * (canvasX - this.smoothedHand.x);
+                this.smoothedHand.y += alphaCoord * (canvasY - this.smoothedHand.y);
+            }
+            this.activeHand = { x: this.smoothedHand.x, y: this.smoothedHand.y };
+
+            // 6. Double threshold hysteresis logic on the smoothed distance metric
+            if (!this.isPinching && finalDNorm < this.pinchStartDist) {
                 this.isPinching = true;
-                this.startDrawingCoord(canvasX, canvasY);
-            } else if (this.isPinching && dNorm > this.pinchEndDist) {
+                this.startDrawingCoord(this.activeHand.x, this.activeHand.y);
+            } else if (this.isPinching && finalDNorm > this.pinchEndDist) {
                 this.isPinching = false;
                 this.stopDrawing();
             } else if (this.isPinching) {
-                this.drawCoord(canvasX, canvasY);
+                this.drawCoord(this.activeHand.x, this.activeHand.y);
             }
         } else {
+            // Hand lost - reset filters instantly to prevent interpolation snapping on re-acquire
             this.activeHand = null;
             this.activeHandRaw = null;
+            this.smoothedHand = null;
+            this.smoothedDNorm = null;
             if (this.isPinching) {
                 this.isPinching = false;
                 this.stopDrawing();

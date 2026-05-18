@@ -56,21 +56,27 @@ Webcam coordinates are normalized between `[0, 1]`, with `(0,0)` at the top-left
 $$\text{Canvas } X = (1.0 - \text{Hand } X_{\text{normalized}}) \times \text{Canvas Width}$$
 $$\text{Canvas } Y = \text{Hand } Y_{\text{normalized}} \times \text{Canvas Height}$$
 
-### B. Scale-Invariant Pinch Detection
-Detecting a pinch based on pixel distance fails if the user moves closer to or further from the camera. To make detection **scale-invariant**, we normalize the distance between the Thumb Tip ($T$) and Index Tip ($I$) by a reference hand size.
+### B. Scale-Invariant Pinch Detection (2D Plane)
+Detecting a pinch using 3D coordinates introduces severe volatility due to camera depth estimation noise. To make detection highly robust, calculations are projected onto the **2D camera plane** ($X, Y$) and normalized against the **2D Palm Width** ($W_{\text{palm}}$), which is completely rigid and invariant to finger movements.
 
 1. **Thumb Tip Landmark**: Index `4`
 2. **Index Tip Landmark**: Index `8`
-3. **Reference Scale (Wrist to Middle Knuckle)**: Distance between Wrist (Index `0`) and Middle Finger MCP joint (Index `9`). Let this be $S_{\text{ref}}$.
+3. **Palm Width (Stable Reference Scale)**: Distance between Index MCP joint (Index `5`) and Pinky MCP joint (Index `17`). Let this be $W_{\text{palm}}$.
 
-$$\text{Pinch Distance (Raw)} = D_{\text{raw}} = \sqrt{(I_x - T_x)^2 + (I_y - T_y)^2 + (I_z - T_z)^2}$$
-$$\text{Pinch Distance (Normalized)} = D_{\text{norm}} = \frac{D_{\text{raw}}}{S_{\text{ref}}}$$
+$$\text{Pinch Distance (Raw 2D)} = D_{\text{raw}} = \sqrt{(I_x - T_x)^2 + (I_y - T_y)^2}$$
+$$\text{Pinch Distance (Normalized)} = D_{\text{norm}} = \frac{D_{\text{raw}}}{W_{\text{palm}}}$$
 
-### C. Hysteresis State Machine
-To prevent stuttering and coordinate jitter from repeatedly triggering draw events, a **double-threshold hysteresis** is applied to the normalized distance:
+### C. Double-Filter Signal Processing (EMA) & Hysteresis
+To prevent joint tremors and camera sensor noise from introducing jitter or breaking paths, we apply two separate low-pass Exponential Moving Average (EMA) filters on every frame:
 
-- **Activation Threshold** ($D_{\text{norm}} < 0.08$): User is pinching. Start drawing.
-- **Deactivation Threshold** ($D_{\text{norm}} > 0.12$): User has released pinch. Trigger gesture recognition.
+1. **Coordinate Smoothing**: Filters index finger movement using a smoothing factor of $\alpha_{\text{coord}} = 0.20$ to create butter-smooth lines.
+   $$\text{Smoothed } X_{t} = \text{Smoothed } X_{t-1} + \alpha_{\text{coord}} \times (\text{Raw } X_{t} - \text{Smoothed } X_{t-1})$$
+2. **Distance Smoothing**: Filters the normalized pinch distance metric using a smoothing factor of $\alpha_{\text{dist}} = 0.25$ to absorb single-frame occlusions.
+   $$\text{Smoothed } D_{t} = \text{Smoothed } D_{t-1} + \alpha_{\text{dist}} \times (\text{Raw } D_{t} - \text{Smoothed } D_{t-1})$$
+
+A **double-threshold hysteresis** state machine is then applied to the smoothed distance metric:
+- **Activation Threshold** ($D_{\text{norm}} < 0.25$): User is pinching. Start drawing.
+- **Deactivation Threshold** ($D_{\text{norm}} > 0.38$): User has released pinch. Trigger gesture recognition.
 
 ---
 
