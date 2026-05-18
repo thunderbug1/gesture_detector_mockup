@@ -31,6 +31,9 @@ class App {
     init() {
         this.resize();
         window.addEventListener('resize', () => this.resize());
+        
+        // Deferred resize to accommodate initial flexbox/layout rendering delays
+        setTimeout(() => this.resize(), 100);
 
         this.canvas.addEventListener('pointerdown', (e) => this.startDrawing(e));
         this.canvas.addEventListener('pointermove', (e) => this.draw(e));
@@ -51,9 +54,17 @@ class App {
     }
 
     resize() {
-        const rect = this.canvas.parentElement.getBoundingClientRect();
-        this.canvas.width = rect.width;
-        this.canvas.height = rect.height;
+        const parent = this.canvas.parentElement;
+        if (!parent) return;
+        const rect = parent.getBoundingClientRect();
+        
+        // Robust fallback: if bounding rect returns 0 due to early layout queries,
+        // use offsetDimensions or estimated viewport sizes to keep drawing buffer > 0.
+        const width = rect.width || parent.offsetWidth || (window.innerWidth - 360);
+        const height = rect.height || parent.offsetHeight || (window.innerHeight - 200);
+        
+        this.canvas.width = Math.max(width, 100);
+        this.canvas.height = Math.max(height, 100);
         this.clear();
     }
 
