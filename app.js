@@ -25,6 +25,30 @@ class App {
         this.smoothedHand = null;
         this.smoothedDNorm = undefined;
 
+        // Track state for both Left and Right hands separately
+        this.hands = {
+            Left: {
+                points: [],
+                isDrawing: false,
+                isPinching: false,
+                activeHand: null,
+                activeHandRaw: null,
+                smoothedHand: null,
+                smoothedDNorm: null,
+                recognitionResult: null
+            },
+            Right: {
+                points: [],
+                isDrawing: false,
+                isPinching: false,
+                activeHand: null,
+                activeHandRaw: null,
+                smoothedHand: null,
+                smoothedDNorm: null,
+                recognitionResult: null
+            }
+        };
+
         this.init();
     }
 
@@ -73,16 +97,22 @@ class App {
 
         const mouseBtn = document.getElementById('mode-mouse');
         const webcamBtn = document.getElementById('mode-webcam');
+        const singleView = document.getElementById('single-result-view');
+        const multiView = document.getElementById('multi-result-view');
 
         if (mode === 'mouse') {
             this.currentMode = 'mouse';
             if (mouseBtn) mouseBtn.classList.add('active');
             if (webcamBtn) webcamBtn.classList.remove('active');
+            if (singleView) singleView.classList.remove('hidden');
+            if (multiView) multiView.classList.add('hidden');
             this.disableWebcam();
         } else {
             this.currentMode = 'webcam';
             if (webcamBtn) webcamBtn.classList.add('active');
             if (mouseBtn) mouseBtn.classList.remove('active');
+            if (singleView) singleView.classList.add('hidden');
+            if (multiView) multiView.classList.remove('hidden');
             await this.enableWebcam();
         }
         this.clear(true);
@@ -153,7 +183,7 @@ class App {
                     this.handLandmarker = await HandLandmarker.createFromOptions(vision, {
                         baseOptions: { ...baseOptions, delegate: "GPU" },
                         runningMode: "VIDEO",
-                        numHands: 1
+                        numHands: 2
                     });
                 } catch (gpuError) {
                     console.warn("WebGL/GPU initiation failed, falling back to CPU delegation:", gpuError);
@@ -161,7 +191,7 @@ class App {
                     this.handLandmarker = await HandLandmarker.createFromOptions(vision, {
                         baseOptions: { ...baseOptions, delegate: "CPU" },
                         runningMode: "VIDEO",
-                        numHands: 1
+                        numHands: 2
                     });
                 }
             }
@@ -184,6 +214,27 @@ class App {
             this.video.srcObject = null;
             this.video.classList.remove('active');
         }
+
+        if (this.hands) {
+            this.hands.Left.points = [];
+            this.hands.Left.isPinching = false;
+            this.hands.Left.isDrawing = false;
+            this.hands.Left.activeHand = null;
+            this.hands.Left.activeHandRaw = null;
+            this.hands.Left.smoothedHand = null;
+            this.hands.Left.smoothedDNorm = null;
+            this.hands.Left.recognitionResult = null;
+
+            this.hands.Right.points = [];
+            this.hands.Right.isPinching = false;
+            this.hands.Right.isDrawing = false;
+            this.hands.Right.activeHand = null;
+            this.hands.Right.activeHandRaw = null;
+            this.hands.Right.smoothedHand = null;
+            this.hands.Right.smoothedDNorm = null;
+            this.hands.Right.recognitionResult = null;
+        }
+
         this.isPinching = false;
         this.activeHand = null;
         this.activeHandRaw = null;
@@ -220,75 +271,136 @@ class App {
     }
 
     processHandLandmarks(results) {
+        // Track which hands are active in this frame
+        const activeHandednesses = [];
+
         if (results.landmarks && results.landmarks.length > 0) {
-            const hand = results.landmarks[0];
-            this.activeHandRaw = hand;
+            for (let i = 0; i < results.landmarks.length; i++) {
+                const hand = results.landmarks[i];
+                const handednessInfo = results.handednesses[i];
+                if (!handednessInfo || handednessInfo.length === 0) continue;
 
-            const thumb = hand[4];
-            const index = hand[8];
+                // CategoryName is 'Left' or 'Right'
+                const handedness = handednessInfo[0].categoryName;
+                activeHandednesses.push(handedness);
 
-            // 1. Calculate 2D Euclidean distance on the projected plane (ignores noisy Z)
-            const dRaw = Math.sqrt(
-                Math.pow(index.x - thumb.x, 2) +
-                Math.pow(index.y - thumb.y, 2)
-            );
+                const state = this.hands[handedness];
+                if (!state) continue;
 
-            // 2. Use stable 2D palm width (joint 5 to 17) as rigid reference scale
-            const indexMCP = hand[5];
-            const pinkyMCP = hand[17];
-            const palmWidth = Math.sqrt(
-                Math.pow(pinkyMCP.x - indexMCP.x, 2) +
-                Math.pow(pinkyMCP.y - indexMCP.y, 2)
-            );
+                state.activeHandRaw = hand;
 
-            const dNorm = dRaw / (palmWidth || 1.0);
+                const thumb = hand[4];
+                const index = hand[8];
 
-            // 3. Apply low-pass EMA filter to the pinch distance to prevent frame occlusion dropouts
-            const alphaDist = 0.25;
-            if (this.smoothedDNorm === undefined || this.smoothedDNorm === null) {
-                this.smoothedDNorm = dNorm;
-            } else {
-                this.smoothedDNorm += alphaDist * (dNorm - this.smoothedDNorm);
-            }
-            const finalDNorm = this.smoothedDNorm;
+                // 1. Calculate 2D Euclidean distance on the projected plane
+                const dRaw = Math.sqrt(
+                    Math.pow(index.x - thumb.x, 2) +
+                    Math.pow(index.y - thumb.y, 2)
+                );
 
-            // 4. Map index coordinates to canvas with horizontal mirroring
-            const canvasX = (1.0 - index.x) * this.canvas.width;
-            const canvasY = index.y * this.canvas.height;
+                // 2. Use stable 2D palm width (joint 5 to 17) as rigid reference scale
+                const indexMCP = hand[5];
+                const pinkyMCP = hand[17];
+                const palmWidth = Math.sqrt(
+                    Math.pow(pinkyMCP.x - indexMCP.x, 2) +
+                    Math.pow(pinkyMCP.y - indexMCP.y, 2)
+                );
 
-            // 5. Apply low-pass EMA filter to cursor coordinates to eliminate joint tremors and camera jitter
-            const alphaCoord = 0.20; // 0.20 provides a perfect, butter-smooth draw feel with zero noticeable lag
-            if (!this.smoothedHand) {
-                this.smoothedHand = { x: canvasX, y: canvasY };
-            } else {
-                this.smoothedHand.x += alphaCoord * (canvasX - this.smoothedHand.x);
-                this.smoothedHand.y += alphaCoord * (canvasY - this.smoothedHand.y);
-            }
-            this.activeHand = { x: this.smoothedHand.x, y: this.smoothedHand.y };
+                const dNorm = dRaw / (palmWidth || 1.0);
 
-            // 6. Double threshold hysteresis logic on the smoothed distance metric
-            if (!this.isPinching && finalDNorm < this.pinchStartDist) {
-                this.isPinching = true;
-                this.startDrawingCoord(this.activeHand.x, this.activeHand.y);
-            } else if (this.isPinching && finalDNorm > this.pinchEndDist) {
-                this.isPinching = false;
-                this.stopDrawing();
-            } else if (this.isPinching) {
-                this.drawCoord(this.activeHand.x, this.activeHand.y);
-            }
-        } else {
-            // Hand lost - reset filters instantly to prevent interpolation snapping on re-acquire
-            this.activeHand = null;
-            this.activeHandRaw = null;
-            this.smoothedHand = null;
-            this.smoothedDNorm = null;
-            if (this.isPinching) {
-                this.isPinching = false;
-                this.stopDrawing();
+                // 3. Apply low-pass EMA filter to the pinch distance
+                const alphaDist = 0.25;
+                if (state.smoothedDNorm === undefined || state.smoothedDNorm === null) {
+                    state.smoothedDNorm = dNorm;
+                } else {
+                    state.smoothedDNorm += alphaDist * (dNorm - state.smoothedDNorm);
+                }
+                const finalDNorm = state.smoothedDNorm;
+
+                // 4. Map index coordinates to canvas with horizontal mirroring
+                const canvasX = (1.0 - index.x) * this.canvas.width;
+                const canvasY = index.y * this.canvas.height;
+
+                // 5. Apply low-pass EMA filter to cursor coordinates
+                const alphaCoord = 0.20;
+                if (!state.smoothedHand) {
+                    state.smoothedHand = { x: canvasX, y: canvasY };
+                } else {
+                    state.smoothedHand.x += alphaCoord * (canvasX - state.smoothedHand.x);
+                    state.smoothedHand.y += alphaCoord * (canvasY - state.smoothedHand.y);
+                }
+                state.activeHand = { x: state.smoothedHand.x, y: state.smoothedHand.y };
+
+                // 6. Double threshold hysteresis logic on the smoothed distance metric
+                if (!state.isPinching && finalDNorm < this.pinchStartDist) {
+                    state.isPinching = true;
+                    state.isDrawing = true;
+                    state.recognitionResult = null;
+                    state.points = [new Point(state.activeHand.x, state.activeHand.y)];
+                } else if (state.isPinching && finalDNorm > this.pinchEndDist) {
+                    state.isPinching = false;
+                    state.isDrawing = false;
+                    this.stopDrawingHand(handedness);
+                } else if (state.isPinching) {
+                    state.points.push(new Point(state.activeHand.x, state.activeHand.y));
+                }
             }
         }
 
+        // Reset details for hands that were completely lost this frame
+        ['Left', 'Right'].forEach(handedness => {
+            if (!activeHandednesses.includes(handedness)) {
+                const state = this.hands[handedness];
+                state.activeHand = null;
+                state.activeHandRaw = null;
+                state.smoothedHand = null;
+                state.smoothedDNorm = null;
+                if (state.isPinching) {
+                    state.isPinching = false;
+                    state.isDrawing = false;
+                    this.stopDrawingHand(handedness);
+                }
+            }
+        });
+
         this.render();
+    }
+
+    stopDrawingHand(handedness) {
+        const state = this.hands[handedness];
+        if (!state) return;
+
+        if (state.points.length > 10) {
+            const result = Recognizer.recognize(state.points, this.templates);
+            state.recognitionResult = result;
+            this.showResultHand(handedness, result);
+        } else {
+            state.points = [];
+        }
+        this.render();
+    }
+
+    showResultHand(handedness, result) {
+        const nameId = handedness === 'Left' ? 'left-res-name' : 'right-res-name';
+        const scoreId = handedness === 'Left' ? 'left-res-score' : 'right-res-score';
+
+        const resName = document.getElementById(nameId);
+        const resScore = document.getElementById(scoreId);
+        const container = document.getElementById('canvas-container');
+
+        if (resName) resName.innerText = result.name;
+        if (resScore) resScore.innerText = Math.round(result.score * 100) + '%';
+
+        if (result.score > 0.7) {
+            container.classList.add('recognized');
+            setTimeout(() => container.classList.remove('recognized'), 600);
+
+            document.querySelectorAll('.template-icon').forEach(icon => {
+                icon.classList.toggle('active', icon.dataset.name === result.name);
+            });
+        } else {
+            if (resName) resName.innerText = "Unknown";
+        }
     }
 
     startDrawing(e) {
@@ -368,71 +480,85 @@ class App {
     renderHandOverlay() {
         if (this.currentMode !== 'webcam') return;
 
-        // Draw skeletal connections
-        if (this.activeHandRaw) {
-            this.ctx.save();
-            this.ctx.strokeStyle = this.isPinching ? 'rgba(0, 255, 170, 0.18)' : 'rgba(125, 95, 255, 0.15)';
-            this.ctx.lineWidth = 1.5;
-            this.ctx.lineCap = 'round';
-            this.ctx.lineJoin = 'round';
+        ['Left', 'Right'].forEach(handedness => {
+            const state = this.hands[handedness];
+            
+            // Hand-specific theme colors
+            const baseColor = handedness === 'Left' ? 'rgba(125, 95, 255, 1)' : 'rgba(0, 255, 170, 1)';
+            const skeletonColor = handedness === 'Left' 
+                ? (state.isPinching ? 'rgba(210, 140, 255, 0.25)' : 'rgba(125, 95, 255, 0.15)') 
+                : (state.isPinching ? 'rgba(0, 255, 255, 0.25)' : 'rgba(0, 255, 170, 0.15)');
+            const sparkColor = handedness === 'Left'
+                ? (state.isPinching ? 'rgba(210, 140, 255, 1)' : 'rgba(125, 95, 255, 1)')
+                : (state.isPinching ? 'rgba(0, 255, 255, 1)' : 'rgba(0, 255, 170, 1)');
+            const glowColor = handedness === 'Left' ? '#d28cff' : '#00ffff';
 
-            const connections = [
-                [0, 1], [1, 2], [2, 3], [3, 4], // Thumb
-                [0, 5], [5, 6], [6, 7], [7, 8], // Index
-                [9, 10], [10, 11], [11, 12],   // Middle
-                [13, 14], [14, 15], [15, 16],  // Ring
-                [0, 17], [17, 18], [18, 19], [19, 20], // Pinky
-                [5, 9], [9, 13], [13, 17]       // Palm knuckles
-            ];
+            // Draw skeletal connections
+            if (state.activeHandRaw) {
+                this.ctx.save();
+                this.ctx.strokeStyle = skeletonColor;
+                this.ctx.lineWidth = 1.5;
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
 
-            connections.forEach(([from, to]) => {
-                const p1 = this.activeHandRaw[from];
-                const p2 = this.activeHandRaw[to];
-                if (p1 && p2) {
-                    this.ctx.beginPath();
-                    this.ctx.moveTo((1.0 - p1.x) * this.canvas.width, p1.y * this.canvas.height);
-                    this.ctx.lineTo((1.0 - p2.x) * this.canvas.width, p2.y * this.canvas.height);
-                    this.ctx.stroke();
-                }
-            });
-            this.ctx.restore();
-        }
+                const connections = [
+                    [0, 1], [1, 2], [2, 3], [3, 4], // Thumb
+                    [0, 5], [5, 6], [6, 7], [7, 8], // Index
+                    [9, 10], [10, 11], [11, 12],   // Middle
+                    [13, 14], [14, 15], [15, 16],  // Ring
+                    [0, 17], [17, 18], [18, 19], [19, 20], // Pinky
+                    [5, 9], [9, 13], [13, 17]       // Palm knuckles
+                ];
 
-        // Draw glowing pointer at index finger tip
-        if (this.activeHand) {
-            this.ctx.save();
-
-            const radius = this.isPinching ? 25 : 15;
-            const gradient = this.ctx.createRadialGradient(
-                this.activeHand.x, this.activeHand.y, 2,
-                this.activeHand.x, this.activeHand.y, radius
-            );
-
-            if (this.isPinching) {
-                gradient.addColorStop(0, 'rgba(0, 255, 170, 1)');
-                gradient.addColorStop(0.3, 'rgba(0, 255, 170, 0.3)');
-                gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-            } else {
-                gradient.addColorStop(0, 'rgba(125, 95, 255, 1)');
-                gradient.addColorStop(0.3, 'rgba(125, 95, 255, 0.3)');
-                gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                connections.forEach(([from, to]) => {
+                    const p1 = state.activeHandRaw[from];
+                    const p2 = state.activeHandRaw[to];
+                    if (p1 && p2) {
+                        this.ctx.beginPath();
+                        this.ctx.moveTo((1.0 - p1.x) * this.canvas.width, p1.y * this.canvas.height);
+                        this.ctx.lineTo((1.0 - p2.x) * this.canvas.width, p2.y * this.canvas.height);
+                        this.ctx.stroke();
+                    }
+                });
+                this.ctx.restore();
             }
 
-            this.ctx.fillStyle = gradient;
-            this.ctx.beginPath();
-            this.ctx.arc(this.activeHand.x, this.activeHand.y, radius, 0, Math.PI * 2);
-            this.ctx.fill();
+            // Draw glowing pointer at index finger tip
+            if (state.activeHand) {
+                this.ctx.save();
 
-            // Glowing core
-            this.ctx.fillStyle = '#ffffff';
-            this.ctx.shadowColor = this.isPinching ? '#00ffaa' : '#7d5fff';
-            this.ctx.shadowBlur = 10;
-            this.ctx.beginPath();
-            this.ctx.arc(this.activeHand.x, this.activeHand.y, 4, 0, Math.PI * 2);
-            this.ctx.fill();
+                const radius = state.isPinching ? 25 : 15;
+                const gradient = this.ctx.createRadialGradient(
+                    state.activeHand.x, state.activeHand.y, 2,
+                    state.activeHand.x, state.activeHand.y, radius
+                );
 
-            this.ctx.restore();
-        }
+                gradient.addColorStop(0, sparkColor);
+                gradient.addColorStop(0.3, sparkColor.replace(', 1)', ', 0.3)'));
+                gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+                this.ctx.fillStyle = gradient;
+                this.ctx.beginPath();
+                this.ctx.arc(state.activeHand.x, state.activeHand.y, radius, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                // Glowing core
+                this.ctx.fillStyle = '#ffffff';
+                this.ctx.shadowColor = glowColor;
+                this.ctx.shadowBlur = 10;
+                this.ctx.beginPath();
+                this.ctx.arc(state.activeHand.x, state.activeHand.y, 4, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                // Draw text tag for Left vs Right hand
+                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                this.ctx.font = 'bold 9px "Inter", sans-serif';
+                this.ctx.shadowBlur = 0;
+                this.ctx.fillText(`${handedness.toUpperCase()} HAND`, state.activeHand.x + 12, state.activeHand.y - 12);
+
+                this.ctx.restore();
+            }
+        });
     }
 
     render() {
@@ -444,31 +570,66 @@ class App {
             this.drawGuide(this.activeTemplate);
         }
 
-        // Draw current points
-        if (this.points.length >= 2) {
-            this.ctx.save();
-            this.ctx.beginPath();
-            this.ctx.moveTo(this.points[0].x, this.points[0].y);
-            for (let i = 1; i < this.points.length; i++) {
-                this.ctx.lineTo(this.points[i].x, this.points[i].y);
+        // Render based on current mode
+        if (this.currentMode === 'webcam') {
+            ['Left', 'Right'].forEach(handedness => {
+                const state = this.hands[handedness];
+                if (state.points.length >= 2) {
+                    this.ctx.save();
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(state.points[0].x, state.points[0].y);
+                    for (let i = 1; i < state.points.length; i++) {
+                        this.ctx.lineTo(state.points[i].x, state.points[i].y);
+                    }
+
+                    // Hand-specific theme colors
+                    const color = handedness === 'Left' ? '#d28cff' : '#00ffff';
+                    const glowColor = handedness === 'Left' ? '#7d5fff' : '#00ffaa';
+
+                    if (state.recognitionResult && state.recognitionResult.score > 0.7) {
+                        this.ctx.strokeStyle = color;
+                        this.ctx.shadowColor = color;
+                    } else {
+                        this.ctx.strokeStyle = handedness === 'Left' ? '#7d5fff' : '#00ffaa';
+                        this.ctx.shadowColor = glowColor;
+                    }
+
+                    this.ctx.lineWidth = 4;
+                    this.ctx.lineJoin = 'round';
+                    this.ctx.lineCap = 'round';
+                    this.ctx.shadowBlur = 10;
+
+                    this.ctx.stroke();
+                    this.ctx.restore();
+                }
+            });
+        } else {
+            // Draw current points for single-stroke mouse mode
+            if (this.points.length >= 2) {
+                this.ctx.save();
+                this.ctx.beginPath();
+                this.ctx.moveTo(this.points[0].x, this.points[0].y);
+                for (let i = 1; i < this.points.length; i++) {
+                    this.ctx.lineTo(this.points[i].x, this.points[i].y);
+                }
+
+                // Style based on state
+                if (this.recognitionResult && this.recognitionResult.score > 0.7) {
+                    this.ctx.strokeStyle = '#00ffaa';
+                    this.ctx.shadowColor = '#00ffaa';
+                } else {
+                    this.ctx.strokeStyle = '#7d5fff';
+                    this.ctx.shadowColor = '#7d5fff';
+                }
+
+                this.ctx.lineWidth = 4;
+                this.ctx.lineJoin = 'round';
+                this.ctx.lineCap = 'round';
+                this.ctx.shadowBlur = 10;
+
+                this.ctx.stroke();
+                this.ctx.restore();
             }
-
-            // Style based on state
-            if (this.recognitionResult && this.recognitionResult.score > 0.7) {
-                this.ctx.strokeStyle = '#00ffaa';
-                this.ctx.shadowColor = '#00ffaa';
-            } else {
-                this.ctx.strokeStyle = '#7d5fff';
-                this.ctx.shadowColor = '#7d5fff';
-            }
-
-            this.ctx.lineWidth = 4;
-            this.ctx.lineJoin = 'round';
-            this.ctx.lineCap = 'round';
-            this.ctx.shadowBlur = 10;
-
-            this.ctx.stroke();
-            this.ctx.restore();
         }
 
         // Draw webcam tracking elements on top of the drawing
@@ -479,9 +640,27 @@ class App {
         this.points = [];
         this.recognitionResult = null;
         
+        if (this.hands) {
+            this.hands.Left.points = [];
+            this.hands.Left.recognitionResult = null;
+            this.hands.Right.points = [];
+            this.hands.Right.recognitionResult = null;
+        }
+
+        // Reset single result UI
         document.getElementById('res-name').innerText = "None";
         document.getElementById('res-score').innerText = "0%";
         document.getElementById('res-time').innerText = "0ms";
+
+        // Reset multi result UI
+        const leftName = document.getElementById('left-res-name');
+        const leftScore = document.getElementById('left-res-score');
+        const rightName = document.getElementById('right-res-name');
+        const rightScore = document.getElementById('right-res-score');
+        if (leftName) leftName.innerText = "None";
+        if (leftScore) leftScore.innerText = "0%";
+        if (rightName) rightName.innerText = "None";
+        if (rightScore) rightScore.innerText = "0%";
         
         if (resetActive) {
             document.querySelectorAll('.template-icon').forEach(icon => icon.classList.remove('active'));

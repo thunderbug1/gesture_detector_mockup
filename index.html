@@ -43,17 +43,43 @@
         <div id="ui-overlay">
             <div class="panel" id="result-panel">
                 <h3>Recognition Result</h3>
-                <div class="result-item">
-                    <span>Gesture:</span>
-                    <span id="res-name" class="result-value">None</span>
+                <div id="single-result-view">
+                    <div class="result-item">
+                        <span>Gesture:</span>
+                        <span id="res-name" class="result-value">None</span>
+                    </div>
+                    <div class="result-item">
+                        <span>Confidence:</span>
+                        <span id="res-score" class="result-value">0%</span>
+                    </div>
+                    <div class="result-item">
+                        <span>Time:</span>
+                        <span id="res-time" class="result-value">0ms</span>
+                    </div>
                 </div>
-                <div class="result-item">
-                    <span>Confidence:</span>
-                    <span id="res-score" class="result-value">0%</span>
-                </div>
-                <div class="result-item">
-                    <span>Time:</span>
-                    <span id="res-time" class="result-value">0ms</span>
+                <div id="multi-result-view" class="hidden">
+                    <div class="hand-result-section">
+                        <h4 style="color: var(--accent-color); font-size: 0.8rem; margin: 0.5rem 0 0.2rem; font-family: 'Cinzel', serif; border-bottom: 1px solid rgba(125, 95, 255, 0.2); padding-bottom: 2px;">Left Hand</h4>
+                        <div class="result-item">
+                            <span>Gesture:</span>
+                            <span id="left-res-name" class="result-value">None</span>
+                        </div>
+                        <div class="result-item">
+                            <span>Confidence:</span>
+                            <span id="left-res-score" class="result-value">0%</span>
+                        </div>
+                    </div>
+                    <div class="hand-result-section" style="margin-top: 1rem;">
+                        <h4 style="color: var(--success-color); font-size: 0.8rem; margin: 0.5rem 0 0.2rem; font-family: 'Cinzel', serif; border-bottom: 1px solid rgba(0, 255, 170, 0.2); padding-bottom: 2px;">Right Hand</h4>
+                        <div class="result-item">
+                            <span>Gesture:</span>
+                            <span id="right-res-name" class="result-value">None</span>
+                        </div>
+                        <div class="result-item">
+                            <span>Confidence:</span>
+                            <span id="right-res-score" class="result-value">0%</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 

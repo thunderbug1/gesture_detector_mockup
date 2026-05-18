@@ -10,50 +10,54 @@
 
 * {
     box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
     margin: 0;
     padding: 0;
+    overflow: hidden;
 }
 
 body {
     background-color: var(--bg-color);
     color: var(--text-primary);
     font-family: 'Inter', sans-serif;
-    height: 100vh;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
     background-image: 
         radial-gradient(circle at 50% 50%, rgba(30, 30, 60, 0.3) 0%, transparent 70%),
         url('https://www.transparenttextures.com/patterns/dark-matter.png');
 }
 
 header {
-    padding: 2rem;
+    padding: 1rem 2rem 0.5rem;
     text-align: center;
     z-index: 10;
 }
 
 h1 {
     font-family: 'Cinzel', serif;
-    font-size: 2.5rem;
+    font-size: 2.2rem;
     letter-spacing: 4px;
     text-transform: uppercase;
     text-shadow: 0 0 20px var(--glow-color);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.2rem;
 }
 
 p.subtitle {
     color: var(--text-secondary);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     letter-spacing: 1px;
 }
 
 main {
     flex: 1;
     display: flex;
-    padding: 1rem 2rem 2rem;
+    padding: 0.5rem 2rem 1.5rem;
     gap: 2rem;
     position: relative;
+    min-height: 0; /* Crucial to keep flex layouts within screen bounds */
 }
 
 #canvas-container {
@@ -68,6 +72,8 @@ main {
     align-items: center;
     justify-content: center;
     backdrop-filter: blur(10px);
+    height: 100%;
+    min-height: 0;
 }
 
 canvas {
@@ -81,11 +87,33 @@ canvas {
     position: absolute;
     top: 20px;
     right: 20px;
+    bottom: 20px; /* Constrains height to match canvas-container */
     width: 280px;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
     pointer-events: none;
+    overflow-y: auto; /* Graceful internal scrolling */
+    padding-right: 6px;
+}
+
+/* Premium styled glassmorphic scrollbar */
+#ui-overlay::-webkit-scrollbar {
+    width: 5px;
+}
+
+#ui-overlay::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+
+#ui-overlay::-webkit-scrollbar-thumb {
+    background: rgba(125, 95, 255, 0.35);
+    border-radius: 10px;
+}
+
+#ui-overlay::-webkit-scrollbar-thumb:hover {
+    background: rgba(125, 95, 255, 0.6);
 }
 
 .panel {
@@ -95,6 +123,7 @@ canvas {
     padding: 1.5rem;
     pointer-events: auto;
     box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    flex-shrink: 0; /* Keep panels from squeezing/collapsing */
 }
 
 .panel h3 {
@@ -322,5 +351,9 @@ button:hover {
     background: var(--accent-color) !important;
     color: white !important;
     box-shadow: 0 4px 15px var(--glow-color) !important;
+}
+
+.hidden {
+    display: none !important;
 }
 
